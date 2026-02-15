@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>飞书 Webhook 服务</title>
+    <title>飞书 Webhook</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -41,80 +41,143 @@
             background: #fff3cd;
             color: #856404;
         }
+        .config-section {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .config-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        .config-section input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .config-section .hint {
+            color: #666;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🤖 飞书 Webhook 服务</h1>
-        <p>这是一个基于 GitHub Actions 的飞书机器人 webhook 服务。</p>
+        <p>基于 GitHub Actions 的飞书机器人 webhook 服务。使用飞书机器人的 Incoming Webhook 方式。</p>
+
+        <div class="config-section">
+            <label for="feishuWebhook">飞书机器人 Webhook URL:</label>
+            <input type="text" id="feishuWebhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/xxx">
+            <p class="hint">
+                获取方式：飞书开放平台 → 你的应用 → 机器人能力 → 添加机器人 → 复制 Webhook 地址
+            </p>
+        </div>
 
         <div class="webhook-url">
-            <strong>Webhook URL:</strong><br>
-            <code id="webhookUrl">https://lylgxy888.github.io/feishu-webhook</code>
+            <strong>GitHub Pages 地址:</strong><br>
+            <code>https://lylgxy888.github.io/feishu-webhook</code>
         </div>
 
         <div id="status" class="status loading">
-            正在检查服务状态...
+            点击"保存配置"按钮开始使用
         </div>
 
-        <button onclick="testWebhook()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">
-            测试 Webhook
-        </button>
+        <button onclick="saveConfig()" class="btn btn-primary">保存配置</button>
+        <button onclick="testWebhook()" class="btn btn-secondary">发送测试消息</button>
     </div>
 
     <script>
-        const webhookUrl = document.getElementById('webhookUrl').textContent;
+        const FEISHU_WEBHOOK_KEY = 'feishuWebhookUrl';
 
-        async function checkStatus() {
-            try {
-                const response = await fetch(`${webhookUrl}/health`);
-                const data = await response.json();
-
-                const statusDiv = document.getElementById('status');
-                if (response.ok) {
-                    statusDiv.className = 'status ok';
-                    statusDiv.textContent = `✅ 服务正常: ${data.status}`;
-                } else {
-                    statusDiv.className = 'status error';
-                    statusDiv.textContent = `❌ 服务异常: ${data.error}`;
-                }
-            } catch (error) {
-                const statusDiv = document.getElementById('status');
-                statusDiv.className = 'status error';
-                statusDiv.textContent = `❌ 无法连接服务`;
+        function loadConfig() {
+            const saved = localStorage.getItem(FEISHU_WEBHOOK_KEY);
+            if (saved) {
+                document.getElementById('feishuWebhook').value = saved;
             }
         }
 
-        async function testWebhook() {
+        function saveConfig() {
+            const webhookUrl = document.getElementById('feishuWebhook').value.trim();
+            if (!webhookUrl) {
+                showStatus('error', '请输入飞书机器人 Webhook URL');
+                return;
+            }
+            if (!webhookUrl.startsWith('https://open.feishu.cn/open-apis/bot/v2/hook/')) {
+                showStatus('error', 'Webhook URL 格式不正确，请检查是否以 https://open.feishu.cn/open-apis/bot/v2/hook/ 开头');
+                return;
+            }
+            localStorage.setItem(FEISHU_WEBHOOK_KEY, webhookUrl);
+            showStatus('ok', '✅ 配置已保存！');
+        }
+
+        function showStatus(type, message) {
             const statusDiv = document.getElementById('status');
-            statusDiv.className = 'status loading';
-            statusDiv.textContent = '⏳ 测试中...';
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+        }
+
+        async function testWebhook() {
+            const webhookUrl = document.getElementById('feishuWebhook').value.trim();
+            if (!webhookUrl) {
+                showStatus('error', '请先配置飞书机器人 Webhook URL 并保存');
+                return;
+            }
+
+            showStatus('loading', '⏳ 发送中...');
 
             try {
                 const response = await fetch(webhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        text: { content: '测试消息' },
-                        message_id: 'test-' + Date.now()
+                        msg_type: 'text',
+                        content: {
+                            text: '🤖 测试消息 - 来自飞书 Webhook 服务\n时间: ' + new Date().toLocaleString()
+                        }
                     })
                 });
 
                 if (response.ok) {
-                    statusDiv.className = 'status ok';
-                    statusDiv.textContent = '✅ Webhook 测试成功！';
+                    showStatus('ok', '✅ 测试消息发送成功！请检查飞书群聊');
                 } else {
-                    statusDiv.className = 'status error';
-                    statusDiv.textContent = `❌ Webhook 测试失败: ${response.status}`;
+                    const errorText = await response.text();
+                    showStatus('error', `❌ 发送失败: ${response.status} - ${errorText}`);
                 }
             } catch (error) {
-                statusDiv.className = 'status error';
-                statusDiv.textContent = `❌ Webhook 测试异常`;
+                showStatus('error', `❌ 发送异常: ${error.message}`);
             }
         }
 
-        // 页面加载时检查状态
-        checkStatus();
+        loadConfig();
     </script>
 </body>
 </html>
