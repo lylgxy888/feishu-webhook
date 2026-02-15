@@ -6,7 +6,7 @@
 
 将以下 URL 配置到飞书开放平台：
 ```
-https://your-username.github.io/feishu-webhook
+https://lylgxy888.github.io/feishu-webhook
 ```
 
 ## 配置步骤
@@ -17,7 +17,7 @@ https://your-username.github.io/feishu-webhook
 2. 选择你的应用
 3. 进入"事件订阅"页面
 4. 添加事件：`im.message.receive_v1`
-5. 填写请求地址：`https://your-username.github.io/feishu-webhook`
+5. 填写请求地址：`https://lylgxy888.github.io/feishu-webhook`
 6. 选择"长连接"方式
 7. 添加权限：`im:message`
 
@@ -44,7 +44,7 @@ https://your-username.github.io/feishu-webhook
 
 ### 测试 Webhook
 
-访问 `https://your-username.github.io/feishu-webhook` 查看服务状态
+访问 `https://lylgxy888.github.io/feishu-webhook` 查看服务状态
 
 ### 测试按钮
 

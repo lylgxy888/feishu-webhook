@@ -3,7 +3,7 @@
 ## 步骤1: 上传到 GitHub
 
 1. 在 GitHub 上创建新仓库（如 `feishu-webhook`）
-2. 将 `d:\sc\feishu` 文件夹中的所有文件上传到仓库
+2. 将 `D:\sc\feishu\feishu-webhook` 文件夹中的所有文件上传到仓库
 3. 推送到 GitHub
 
 ```bash
@@ -11,7 +11,7 @@ git init
 git add .
 git commit -m "Initial commit"
 git branch -M main
-git remote add origin https://github.com/your-username/feishu-webhook.git
+git remote add origin https://github.com/lylgxy888/feishu-webhook.git
 git push -u origin main
 ```
 
@@ -27,15 +27,15 @@ git push -u origin main
 ## 步骤3: 等待部署完成
 
 - GitHub Pages 通常需要 1-3 分钟部署
-- 部署完成后会显示 URL：`https://your-username.github.io/feishu-webhook`
+- 部署完成后会显示 URL：`https://lylgxy888.github.io/feishu-webhook`
 
 ## 步骤4: 配置飞书
 
 1. 访问 https://open.feishu.cn/app
 2. 选择你的应用
-3. 进入"事件订阅"
+3. 进入"事件订阅"页面
 4. 添加事件：`im.message.receive_v1`
-5. 填写请求地址：`https://your-username.github.io/feishu-webhook`
+5. 填写请求地址：`https://lylgxy888.github.io/feishu-webhook`
 6. 选择"长连接"方式
 7. 添加权限：`im:message`
 8. 保存并发布应用
