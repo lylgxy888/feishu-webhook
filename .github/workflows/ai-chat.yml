@@ -1,0 +1,130 @@
+name: AI Chat with Feishu
+
+on:
+  repository_dispatch:
+    types: [feishu_message]
+  workflow_dispatch:
+    inputs:
+      message:
+        description: '用户消息'
+        required: true
+        default: '你好'
+      session_id:
+        description: '会话ID'
+        required: false
+        default: 'default'
+
+jobs:
+  ai-chat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Call Zhipu AI and Reply to Feishu
+        uses: actions/github-script@v7
+        env:
+          ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+        with:
+          script: |
+            const ZHIPU_API_KEY = process.env.ZHIPU_API_KEY;
+            const FEISHU_WEBHOOK_URL = process.env.FEISHU_WEBHOOK_URL || 'https://open.feishu.cn/open-apis/bot/v2/hook/fda77564-40f5-4410-8560-450c8c2b03b5';
+            
+            // 获取用户消息
+            let userMessage = '';
+            let sessionId = 'default';
+            
+            if (context.payload.client_payload) {
+              // 从 repository_dispatch 获取
+              userMessage = context.payload.client_payload.message || '';
+              sessionId = context.payload.client_payload.session_id || 'default';
+            } else if (github.event.inputs) {
+              // 从 workflow_dispatch 获取
+              userMessage = github.event.inputs.message || '';
+              sessionId = github.event.inputs.session_id || 'default';
+            }
+            
+            console.log('收到用户消息:', userMessage);
+            console.log('会话ID:', sessionId);
+            
+            if (!userMessage) {
+              console.log('没有收到消息，跳过处理');
+              return;
+            }
+            
+            // 调用智谱 AI API
+            async function callZhipuAI(message) {
+              try {
+                const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${ZHIPU_API_KEY}`
+                  },
+                  body: JSON.stringify({
+                    model: 'glm-4-flash',
+                    messages: [
+                      {
+                        role: 'system',
+                        content: '你是一个友好的AI助手，请用中文回复用户的消息。'
+                      },
+                      {
+                        role: 'user',
+                        content: message
+                      }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 2048
+                  })
+                });
+                
+                if (!response.ok) {
+                  const errorText = await response.text();
+                  throw new Error(`API调用失败: ${response.status} - ${errorText}`);
+                }
+                
+                const data = await response.json();
+                return data.choices[0].message.content;
+              } catch (error) {
+                console.error('调用智谱AI失败:', error);
+                return '抱歉，AI服务暂时不可用，请稍后再试。';
+              }
+            }
+            
+            // 发送消息到飞书
+            async function sendToFeishu(message) {
+              try {
+                const response = await fetch(FEISHU_WEBHOOK_URL, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    msg_type: 'text',
+                    content: {
+                      text: message
+                    }
+                  })
+                });
+                
+                if (!response.ok) {
+                  const errorText = await response.text();
+                  throw new Error(`发送失败: ${response.status} - ${errorText}`);
+                }
+                
+                console.log('消息已发送到飞书');
+              } catch (error) {
+                console.error('发送到飞书失败:', error);
+              }
+            }
+            
+            // 主流程
+            console.log('正在调用智谱AI...');
+            const aiReply = await callZhipuAI(userMessage);
+            console.log('AI回复:', aiReply);
+            
+            console.log('正在发送到飞书...');
+            await sendToFeishu(aiReply);
+            
+            console.log('处理完成!');
