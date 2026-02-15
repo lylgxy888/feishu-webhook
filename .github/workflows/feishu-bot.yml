@@ -1,0 +1,98 @@
+name: Feishu AI Bot
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  handle-message:
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.title, '[FeishuBot]')
+    steps:
+      - name: Parse message
+        id: parse
+        run: |
+          # 从 Issue 标题和正文解析消息
+          TITLE="${{ github.event.issue.title }}"
+          BODY="${{ github.event.issue.body }}"
+          
+          # 提取会话ID和消息内容
+          SESSION_ID=$(echo "$BODY" | grep "Session:" | cut -d':' -f2 | tr -d ' ')
+          CHAT_ID=$(echo "$BODY" | grep "ChatID:" | cut -d':' -f2 | tr -d ' ')
+          MESSAGE=$(echo "$BODY" | grep "Message:" | cut -d':' -f2- | sed 's/^ *//')
+          
+          echo "session_id=$SESSION_ID" >> $GITHUB_OUTPUT
+          echo "chat_id=$CHAT_ID" >> $GITHUB_OUTPUT
+          echo "message=$MESSAGE" >> $GITHUB_OUTPUT
+          
+          echo "收到消息: $MESSAGE"
+          echo "会话ID: $SESSION_ID"
+          echo "聊天ID: $CHAT_ID"
+
+      - name: Call Zhipu AI
+        id: ai
+        env:
+          ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+        run: |
+          MESSAGE="${{ steps.parse.outputs.message }}"
+          
+          # 调用智谱 AI
+          RESPONSE=$(curl -s -X POST https://open.bigmodel.cn/api/paas/v4/chat/completions \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $ZHIPU_API_KEY" \
+            -d '{
+              "model": "glm-4-flash",
+              "messages": [
+                {"role": "system", "content": "你是一个友好的AI助手，请用中文回复。"},
+                {"role": "user", "content": "'"$MESSAGE"'"}
+              ],
+              "temperature": 0.7,
+              "max_tokens": 2048
+            }')
+          
+          # 提取 AI 回复
+          AI_REPLY=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // "抱歉，AI服务暂时不可用"')
+          
+          # 处理多行文本
+          AI_REPLY="${AI_REPLY//'%'/'%25'}"
+          AI_REPLY="${AI_REPLY//$'\n'/'%0A'}"
+          AI_REPLY="${AI_REPLY//$'\r'/'%0D'}"
+          
+          echo "reply=$AI_REPLY" >> $GITHUB_OUTPUT
+          echo "AI回复: $AI_REPLY"
+
+      - name: Reply to Feishu
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK_URL }}
+        run: |
+          CHAT_ID="${{ steps.parse.outputs.chat_id }}"
+          AI_REPLY="${{ steps.ai.outputs.reply }}"
+          
+          # URL 解码
+          AI_REPLY="${AI_REPLY//'%0D'%0A/$'\n'}"
+          AI_REPLY="${AI_REPLY//'%0A'/$'\n'}"
+          AI_REPLY="${AI_REPLY//'%25'/'%'}"
+          
+          # 发送回复到飞书
+          curl -X POST "$FEISHU_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "msg_type": "text",
+              "content": {
+                "text": "'"$AI_REPLY"'"
+              }
+            }'
+          
+          echo "已回复到飞书"
+
+      - name: Close issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              state: 'closed'
+            });
+            console.log('Issue 已关闭');
