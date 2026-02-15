@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞书 Webhook</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .container {
+            background: #f5f5f5;
+            padding: 30px;
+            border-radius: 8px;
+        }
+        h1 { color: #333; }
+        .webhook-url {
+            background: #fff;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            word-break: break-all;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .status.ok {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 飞书 Webhook 服务</h1>
+        <p>这是一个基于 GitHub Actions 的飞书机器人 webhook 服务。</p>
+
+        <div class="webhook-url">
+            <strong>Webhook URL:</strong><br>
+            <code id="webhookUrl">https://your-username.github.io/feishu-webhook</code>
+        </div>
+
+        <div id="status" class="status loading">
+            正在检查服务状态...
+        </div>
+
+        <button onclick="testWebhook()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">
+            测试 Webhook
+        </button>
+    </div>
+
+    <script>
+        const webhookUrl = document.getElementById('webhookUrl').textContent;
+
+        async function checkStatus() {
+            try {
+                const response = await fetch(`${webhookUrl}/health`);
+                const data = await response.json();
+
+                const statusDiv = document.getElementById('status');
+                if (response.ok) {
+                    statusDiv.className = 'status ok';
+                    statusDiv.textContent = `✅ 服务正常: ${data.status}`;
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = `❌ 服务异常: ${data.error}`;
+                }
+            } catch (error) {
+                const statusDiv = document.getElementById('status');
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ 无法连接服务`;
+            }
+        }
+
+        async function testWebhook() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = 'status loading';
+            statusDiv.textContent = '⏳ 测试中...';
+
+            try {
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: { content: '测试消息' },
+                        message_id: 'test-' + Date.now()
+                    })
+                });
+
+                if (response.ok) {
+                    statusDiv.className = 'status ok';
+                    statusDiv.textContent = '✅ Webhook 测试成功！';
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = `❌ Webhook 测试失败: ${response.status}`;
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ Webhook 测试异常`;
+            }
+        }
+
+        // 页面加载时检查状态
+        checkStatus();
+    </script>
+</body>
+</html>
