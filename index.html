@@ -427,18 +427,20 @@
             showStatus('chatStatus', 'loading', '⏳ 正在调用 AI，请稍候...');
 
             // 如果有 GitHub Token，尝试触发 Actions
+            console.log('GitHub Token:', githubToken ? '已配置' : '未配置');
             if (githubToken) {
                 try {
                     await triggerGitHubActions(message, feishuWebhook, githubToken);
                     showStatus('chatStatus', 'ok', '✅ 消息已发送给 AI，回复将推送到飞书群聊');
                 } catch (error) {
                     console.error('触发 GitHub Actions 失败:', error);
-                    showStatus('chatStatus', 'error', '❌ 调用失败，已切换到模拟模式');
+                    showStatus('chatStatus', 'error', '❌ 调用失败: ' + error.message);
                     // 模拟 AI 回复
                     setTimeout(() => simulateAIReply(message), 1000);
                 }
             } else {
                 // 模拟模式
+                console.log('进入模拟模式');
                 showStatus('chatStatus', 'info', 'ℹ️ 模拟模式：未配置 GitHub Token，显示模拟回复');
                 setTimeout(() => simulateAIReply(message), 1500);
             }
